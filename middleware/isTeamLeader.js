@@ -21,7 +21,7 @@ module.exports = async (req, res, next) => {
     }
 
     if (rows[0].leader_id !== memberId) {
-      return res.status(403).json({ error: "Not team leader" });
+      return res.status(403).json({ error: "Not the leader of this team" });
     }
 
     next();

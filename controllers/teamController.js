@@ -20,11 +20,16 @@ exports.createTeam = async (req, res) => {
     });
 
 
+
     }
+
+    const [event_id] = await pool.query(
+      "SELECT event_id FROM members WHERE id=?",
+      [leaderId]
+    );
     const {
       name,
-      color,
-      event_id
+      color
     } = req.body;
 
     const logo = req.file ? req.file.path : null;
@@ -38,7 +43,7 @@ exports.createTeam = async (req, res) => {
         name,
         logo,
         color,
-        event_id,
+        event_id[0].event_id,
         leaderId
       ]
     );

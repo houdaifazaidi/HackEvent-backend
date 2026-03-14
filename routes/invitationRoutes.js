@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/authMiddleware");
 const memberAuth = require("../middleware/memberAuth")
-const isTeamLeader = require("../middleware/isTeamLeader");
+const isLeader = require("../middleware/isLeader");
 
 const {
   createLeaderInvite,
@@ -15,7 +15,7 @@ router.post("/leader", auth, createLeaderInvite);
 
 router.post("/leader/join", joinAsLeader);
 
-router.post("/team", memberAuth, isTeamLeader, createTeamInvite);
+router.post("/team", memberAuth, isLeader, createTeamInvite);
 
 router.post("/team/join", joinTeam);
 
