@@ -1,46 +1,24 @@
 const pool = require("../config/db");
 
-// Helper to ensure a timer exists for the event
-const ensureTimerExists = async (event_id) => {
-    const [rows] = await pool.query("SELECT id FROM timers WHERE event_id=?", [event_id]);
+// Helper to ensure global timer exists
+const ensureGlobalTimerExists = async () => {
+    const [rows] = await pool.query("SELECT id FROM timers WHERE id=1");
     if (rows.length === 0) {
-        await pool.query("INSERT INTO timers (event_id) VALUES (?)", [event_id]);
+        await pool.query("INSERT INTO timers (id, status) VALUES (1, 'not_started')");
     }
 };
 
-// CREATE TIMER
+// CREATE TIMER (NOP for global)
 exports.createTimer = async (req, res) => {
-  try {
-    const { eventId } = req.params;
-
-    const [rows] = await pool.query("SELECT id FROM timers WHERE event_id=?", [eventId]);
-    
-    if (rows.length > 0) {
-        return res.status(400).json({ error: "Timer already exists for this event" });
-    }
-
-    await pool.query("INSERT INTO timers (event_id) VALUES (?)", [eventId]);
-
-    res.json({ message: "Timer created" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await ensureGlobalTimerExists();
+  res.json({ message: "Global timer ready" });
 };
 
-// GET EVENT TIMER
+// GET GLOBAL TIMER
 exports.getEventTimer = async (req, res) => {
   try {
-    const { eventId } = req.params;
-
-    const [rows] = await pool.query(
-      "SELECT * FROM timers WHERE event_id=?",
-      [eventId]
-    );
-
-    if (rows.length === 0) {
-        return res.json({ event_id: eventId, status: 'not_started', start_time: null, end_time: null });
-    }
-
+    await ensureGlobalTimerExists();
+    const [rows] = await pool.query("SELECT * FROM timers WHERE id=1");
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -50,17 +28,11 @@ exports.getEventTimer = async (req, res) => {
 // START TIMER
 exports.startTimer = async (req, res) => {
   try {
-    const { eventId } = req.params;
-    const { end_time } = req.body; // Expecting ISO string or similar valid datetime
-    
-    await ensureTimerExists(eventId);
-
-    await pool.query(
-        "UPDATE timers SET status='running', start_time=NOW(), end_time=? WHERE event_id=?",
-        [end_time || null, eventId]
-    );
-
-    res.json({ message: "Timer started" });
+    const { end_time } = req.body;
+    await ensureGlobalTimerExists();
+    const query = "UPDATE timers SET status='running', start_time=NOW(), end_time=? WHERE id=1";
+    await pool.query(query, [end_time || null]);
+    res.json({ message: "Global timer started" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -69,16 +41,9 @@ exports.startTimer = async (req, res) => {
 // PAUSE TIMER
 exports.pauseTimer = async (req, res) => {
   try {
-    const { eventId } = req.params;
-    
-    await ensureTimerExists(eventId);
-
-    await pool.query(
-        "UPDATE timers SET status='paused' WHERE event_id=?",
-        [eventId]
-    );
-
-    res.json({ message: "Timer paused" });
+    await ensureGlobalTimerExists();
+    await pool.query("UPDATE timers SET status='paused' WHERE id=1");
+    res.json({ message: "Global timer paused" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -87,16 +52,9 @@ exports.pauseTimer = async (req, res) => {
 // RESUME TIMER
 exports.resumeTimer = async (req, res) => {
   try {
-    const { eventId } = req.params;
-    
-    await ensureTimerExists(eventId);
-
-    await pool.query(
-        "UPDATE timers SET status='running' WHERE event_id=?",
-        [eventId]
-    );
-
-    res.json({ message: "Timer resumed" });
+    await ensureGlobalTimerExists();
+    await pool.query("UPDATE timers SET status='running' WHERE id=1");
+    res.json({ message: "Global timer resumed" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -105,16 +63,9 @@ exports.resumeTimer = async (req, res) => {
 // FINISH TIMER
 exports.finishTimer = async (req, res) => {
   try {
-    const { eventId } = req.params;
-    
-    await ensureTimerExists(eventId);
-
-    await pool.query(
-        "UPDATE timers SET status='finished', end_time=NOW() WHERE event_id=?",
-        [eventId]
-    );
-
-    res.json({ message: "Timer finished" });
+    await ensureGlobalTimerExists();
+    await pool.query("UPDATE timers SET status='finished', end_time=NOW() WHERE id=1");
+    res.json({ message: "Global timer finished" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
