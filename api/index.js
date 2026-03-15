@@ -23,25 +23,44 @@ app.use(cors({
 app.use(express.json());
 
 const MySQLStore = require("express-mysql-session")(session);
-const pool = require("../config/db");
+const pool = require("../config/db"); // This is a promise pool
+const mysql = require("mysql2"); // Import standard mysql2 for callback pool
 
-const sessionStore = new MySQLStore({}, pool);
+// Create a separate callback pool for express-mysql-session
+const sessionPool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
+
+const sessionStore = new MySQLStore({}, sessionPool);
 
 app.use(session({
   key: 'hackevent_session_cookie',
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'hackathon_secret_777',
   store: sessionStore,
-  resave: false,
+  resave: true,
   saveUninitialized: false,
+  proxy: true,
   cookie: {
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax', // Required for cross-site cookies (Vercel to Localhost)
+    secure: true, // Vercel is always HTTPS
+    sameSite: 'none', // Required for cross-site cookies
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 1 day
   }
 }));
 
 app.use("/auth", authRoutes);
+app.get("/auth/me", (req, res) => {
+  if (req.session.adminId) {
+    res.json({ loggedIn: true, role: 'admin', id: req.session.adminId });
+  } else if (req.session.memberId) {
+    res.json({ loggedIn: true, role: 'member', id: req.session.memberId });
+  } else {
+    res.json({ loggedIn: false });
+  }
+});
 app.use("/events", eventRoutes);
 app.use("/teams", teamRoutes);
 app.use("/invites", invitationRoutes);
