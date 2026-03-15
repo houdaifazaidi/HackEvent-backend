@@ -31,10 +31,15 @@ exports.loginMember = async (req, res) => {
 
   req.session.memberId = member.id;
 
-  res.json({
-    message: "Logged in",
-    member_id: member.id,
-    role: member.role
+  req.session.save((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to save session" });
+    }
+    res.json({
+      message: "Logged in",
+      member_id: member.id,
+      role: member.role
+    });
   });
 
 };

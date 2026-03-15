@@ -40,7 +40,7 @@ app.use(session({
   key: 'hackevent_session_cookie',
   secret: process.env.SESSION_SECRET || 'hackathon_secret_777',
   store: sessionStore,
-  resave: true,
+  resave: false,
   saveUninitialized: false,
   proxy: true,
   cookie: {
