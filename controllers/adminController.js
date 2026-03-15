@@ -95,17 +95,22 @@ exports.updateMemberRole = async (req, res) => {
           await pool.query("START TRANSACTION");
           
           try {
-             // 1. Downgrade all members in this team
-             await pool.query("UPDATE members SET role='member' WHERE team_id=?", [teamId]);
-             
-             // 2. Upgrade the target member
-             await pool.query("UPDATE members SET role='leader' WHERE id=?", [id]);
-             
-             // 3. Update the team's leader
-             await pool.query("UPDATE teams SET leader_id=? WHERE id=?", [id, teamId]);
+             // 1. Create a NEW team for this person
+             const teamName = `${targetMember.first_name} ${targetMember.last_name}`;
+             const [teamRes] = await pool.query(
+                 "INSERT INTO teams (name, event_id, leader_id) VALUES (?, ?, ?)",
+                 [teamName, targetMember.event_id, id]
+             );
+             const newTeamId = teamRes.insertId;
+
+             // 2. Update the target member's role and team_id
+             await pool.query(
+                 "UPDATE members SET role='leader', team_id=? WHERE id=?",
+                 [newTeamId, id]
+             );
              
              await pool.query("COMMIT");
-             return res.json({ message: "Role updated to leader and previous leader downgraded" });
+             return res.json({ message: "Role updated to leader of a new team" });
 
           } catch (txErr) {
              await pool.query("ROLLBACK");
