@@ -26,7 +26,13 @@ exports.login = async (req, res) => {
 
     req.session.adminId = admin.id;
 
-    res.json({ message: "Logged in" });
+    // Explicitly save session for serverless environments
+    req.session.save((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Failed to save session" });
+      }
+      res.json({ message: "Logged in" });
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
