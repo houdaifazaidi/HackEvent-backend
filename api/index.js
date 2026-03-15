@@ -67,12 +67,14 @@ app.use(session({
 
 app.use("/auth", authRoutes);
 app.get("/auth/me", (req, res) => {
+  console.log(`[DEBUG] Cookies in request:`, req.headers.cookie);
+  console.log(`[DEBUG] Session ID: ${req.sessionID}`);
   if (req.session.adminId) {
-    res.json({ loggedIn: true, role: 'admin', id: req.session.adminId });
+    res.json({ loggedIn: true, role: 'admin', id: req.session.adminId, sessionId: req.sessionID });
   } else if (req.session.memberId) {
-    res.json({ loggedIn: true, role: 'member', id: req.session.memberId });
+    res.json({ loggedIn: true, role: 'member', id: req.session.memberId, sessionId: req.sessionID });
   } else {
-    res.json({ loggedIn: false });
+    res.json({ loggedIn: false, sessionId: req.sessionID, cookiesFound: !!req.headers.cookie });
   }
 });
 app.use("/events", eventRoutes);
