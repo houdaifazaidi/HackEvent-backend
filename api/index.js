@@ -16,7 +16,15 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
+  origin: function (origin, callback) {
+    // Allow any origin for now to rule out CORS issues, 
+    // or specifically check if it's localhost/127.0.0.1
+    if (!origin || origin.indexOf('localhost') !== -1 || origin.indexOf('127.0.0.1') !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
@@ -32,22 +40,28 @@ const sessionPool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  ssl: { rejectUnauthorized: false } // Common requirement for remote DBs
 });
 
-const sessionStore = new MySQLStore({}, sessionPool);
+const sessionStore = new MySQLStore({
+  clearExpired: true,
+  checkExpirationInterval: 900000,
+  expiration: 86400000,
+  createDatabaseTable: true,
+}, sessionPool);
 
 app.use(session({
   key: 'hackevent_session_cookie',
   secret: process.env.SESSION_SECRET || 'hackathon_secret_777',
   store: sessionStore,
-  resave: false,
+  resave: true, // Try resave: true to force updates on every request for debugging
   saveUninitialized: false,
   proxy: true,
   cookie: {
-    secure: true, // Vercel is always HTTPS
-    sameSite: 'none', // Required for cross-site cookies
+    secure: true, 
+    sameSite: 'none', 
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 // 1 day
+    maxAge: 1000 * 60 * 60 * 24 
   }
 }));
 
