@@ -2,15 +2,11 @@
 -- EVENT PLATFORM DATABASE SCHEMA
 -- ======================================================
 
--- DROP DATABASE IF EXISTS hackevent_db;
--- CREATE DATABASE hackevent_db;
--- USE hackevent_db;
-
 -- ======================================================
 -- ADMINS
 -- ======================================================
 
-CREATE TABLE admins (
+CREATE TABLE IF NOT EXISTS admins (
     id INT AUTO_INCREMENT PRIMARY KEY,
     login VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -21,7 +17,7 @@ CREATE TABLE admins (
 -- EVENTS
 -- ======================================================
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     logo VARCHAR(255),
@@ -32,15 +28,11 @@ CREATE TABLE events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ensure only one event can be "current"
-CREATE UNIQUE INDEX unique_current_event
-ON events ((status = 'current'));
-
 -- ======================================================
 -- WORKSHOPS
 -- ======================================================
 
-CREATE TABLE workshops (
+CREATE TABLE IF NOT EXISTS workshops (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
     description TEXT,
@@ -57,7 +49,7 @@ CREATE TABLE workshops (
 -- MEMBERS
 -- ======================================================
 
-CREATE TABLE members (
+CREATE TABLE IF NOT EXISTS members (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -66,6 +58,7 @@ CREATE TABLE members (
     role ENUM('leader','member') DEFAULT 'member',
     event_id INT NOT NULL,
     team_id INT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (event_id)
@@ -77,7 +70,7 @@ CREATE TABLE members (
 -- TEAMS
 -- ======================================================
 
-CREATE TABLE teams (
+CREATE TABLE IF NOT EXISTS teams (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     logo VARCHAR(255),
@@ -103,7 +96,7 @@ CREATE TABLE teams (
 );
 
 -- ======================================================
--- MEMBER TEAM RELATION
+-- MEMBER TEAM RELATION (Adding Constraint)
 -- ======================================================
 
 ALTER TABLE members
@@ -116,7 +109,7 @@ ON DELETE SET NULL;
 -- LEADER INVITATIONS
 -- ======================================================
 
-CREATE TABLE leader_invitations (
+CREATE TABLE IF NOT EXISTS leader_invitations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
     event_id INT NOT NULL,
@@ -132,7 +125,7 @@ CREATE TABLE leader_invitations (
 -- TEAM INVITATIONS
 -- ======================================================
 
-CREATE TABLE team_invitations (
+CREATE TABLE IF NOT EXISTS team_invitations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
     team_id INT NOT NULL,
@@ -148,7 +141,7 @@ CREATE TABLE team_invitations (
 -- EVENT TIMER
 -- ======================================================
 
-CREATE TABLE timers (
+CREATE TABLE IF NOT EXISTS timers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     event_id INT NOT NULL,
     start_time DATETIME,
@@ -161,16 +154,27 @@ CREATE TABLE timers (
 );
 
 -- ======================================================
--- TRIGGER: HANDLE TEAM DELETION
+-- SESSIONS
+-- ======================================================
+
+CREATE TABLE IF NOT EXISTS `sessions` (
+  `session_id` varchar(128) COLLATE utf8mb4_bin NOT NULL,
+  `expires` int(11) unsigned NOT NULL,
+  `data` mediumtext COLLATE utf8mb4_bin,
+  PRIMARY KEY (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- ======================================================
+-- TRIGGERS
 -- ======================================================
 
 DELIMITER $$
 
+-- 1. Handle Team Deletion
 CREATE TRIGGER before_team_delete
 BEFORE DELETE ON teams
 FOR EACH ROW
 BEGIN
-
     -- Delete regular members
     DELETE FROM members
     WHERE team_id = OLD.id
@@ -181,22 +185,30 @@ BEGIN
     SET team_id = NULL
     WHERE team_id = OLD.id
     AND role = 'leader';
+END$$
 
+-- 2. Enforce only one "current" event (On Insert)
+CREATE TRIGGER limit_current_event_insert
+BEFORE INSERT ON events
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'current' THEN
+        IF (SELECT COUNT(*) FROM events WHERE status = 'current') > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Only one event can be current at a time';
+        END IF;
+    END IF;
+END$$
+
+-- 3. Enforce only one "current" event (On Update)
+CREATE TRIGGER limit_current_event_update
+BEFORE UPDATE ON events
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'current' AND OLD.status <> 'current' THEN
+        IF (SELECT COUNT(*) FROM events WHERE status = 'current') > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Only one event can be current at a time';
+        END IF;
+    END IF;
 END$$
 
 DELIMITER ;
-
-
-ALTER TABLE members
-ADD COLUMN password_hash VARCHAR(255) NOT NULL;
-
--- ======================================================
--- SESSIONS (express-mysql-session default structure)
--- ======================================================
-
-CREATE TABLE IF NOT EXISTS `sessions` (
-  `session_id` varchar(128) COLLATE utf8mb4_bin NOT NULL,
-  `expires` int(11) unsigned NOT NULL,
-  `data` mediumtext COLLATE utf8mb4_bin,
-  PRIMARY KEY (`session_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

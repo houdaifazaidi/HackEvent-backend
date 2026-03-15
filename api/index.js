@@ -16,15 +16,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow any origin for now to rule out CORS issues, 
-    // or specifically check if it's localhost/127.0.0.1
-    if (!origin || origin.indexOf('localhost') !== -1 || origin.indexOf('127.0.0.1') !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],
   credentials: true
 }));
 
@@ -50,21 +42,32 @@ const sessionStore = new MySQLStore({
   createDatabaseTable: true,
 }, sessionPool);
 
+const isProduction = process.env.NODE_ENV === 'production' || !process.env.DB_HOST.includes('localhost');
+
 app.use(session({
   key: 'hackevent_session_cookie',
   secret: process.env.SESSION_SECRET || 'hackathon_secret_777',
   store: sessionStore,
-  resave: true, // Try resave: true to force updates on every request for debugging
+  resave: true, 
   saveUninitialized: false,
   proxy: true,
   cookie: {
-    secure: true, 
-    sameSite: 'none', 
+    secure: isProduction, 
+    sameSite: isProduction ? 'none' : 'lax', 
     httpOnly: true,
-    partitioned: true,
+    partitioned: isProduction,
     maxAge: 1000 * 60 * 60 * 24 
   }
 }));
+
+// Debugging Middleware
+app.use((req, res, next) => {
+  console.log(`[MIDDLEWARE] ${req.method} ${req.url}`);
+  console.log(` - Session ID: ${req.sessionID}`);
+  console.log(` - Admin ID in session: ${req.session.adminId || 'none'}`);
+  console.log(` - Cookies: ${req.headers.cookie || 'none'}`);
+  next();
+});
 
 app.use("/auth", authRoutes);
 app.get("/auth/me", (req, res) => {
