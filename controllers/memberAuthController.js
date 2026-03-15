@@ -38,3 +38,14 @@ exports.loginMember = async (req, res) => {
   });
 
 };
+
+
+exports.logoutMember = (req, res) => {
+
+  delete req.session.memberId;
+
+  res.json({
+    message: "Logged out"
+  });
+
+};
