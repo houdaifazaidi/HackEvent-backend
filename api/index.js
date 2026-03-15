@@ -33,6 +33,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax', // Required for cross-site cookies (Vercel to Localhost)
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 1 day
   }
