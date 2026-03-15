@@ -7,7 +7,7 @@ This document outlines all available endpoints in the HackEvent backend, their r
 ## Authentication (`/auth`)
 *Handled by `authRoutes.js` and mostly related to admin/member sessions.*
 
-### `POST /auth/admin/login`
+### `POST /auth/login`
 - **Description:** Login as an administrator.
 - **Body:**
   - `login` (string)
@@ -18,7 +18,7 @@ This document outlines all available endpoints in the HackEvent backend, their r
   { "message": "Admin logged in" }
   ```
 
-### `POST /auth/admin/logout`
+### `POST /auth/logout`
 - **Description:** Logout administrator.
 - **Returns:**
   ```json
