@@ -255,6 +255,20 @@ exports.updateScores = async (req, res) => {
 };
 
 
+// GET TEAM MEMBERS
+exports.getTeamMembers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query(
+      "SELECT id, first_name, last_name, email, role, portfolio FROM members WHERE team_id=?",
+      [id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET SCOREBOARD
 exports.getScoreboard = async (req, res) => {
   try {

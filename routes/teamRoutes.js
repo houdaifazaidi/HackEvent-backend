@@ -15,7 +15,8 @@ const {
   deleteTeam,
   removeTeamMember,
   updateScores,
-  getScoreboard
+  getScoreboard,
+  getTeamMembers
 } = require("../controllers/teamController");
 
 router.post("/", isAdminOrLeader, upload.single("logo"), createTeam);
@@ -25,6 +26,8 @@ router.get("/scoreboard/:eventId", getScoreboard);
 router.get("/", getTeams);
 
 router.get("/:id", getTeam);
+
+router.get("/:id/members", getTeamMembers);
 
 router.put("/:id/scores", auth, upload.none(), updateScores); 
 
