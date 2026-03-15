@@ -67,26 +67,48 @@ exports.joinAsLeader = async (req, res) => {
         return res.status(400).json({ error: "Maximum number of leaders reached for this event" });
     }
 
-    await pool.query(
-      `INSERT INTO members
-      (first_name,last_name,email,password_hash,role,portfolio,event_id)
-      VALUES (?,?,?,?,?,?,?)`,
-      [first_name, last_name, email, await bcrypt.hash(password, 10), "leader", portfolio, invite.event_id]
-    );
+    await pool.query("START TRANSACTION");
 
-    await pool.query(
-      "UPDATE leader_invitations SET used=true WHERE id=?",
-      [invite.id]
-    );
+    try {
+      const password_hash = await bcrypt.hash(password, 10);
+      const [memberResult] = await pool.query(
+        `INSERT INTO members
+        (first_name, last_name, email, password_hash, role, portfolio, event_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [first_name, last_name, email, password_hash, "leader", portfolio, invite.event_id]
+      );
 
-    res.json({ message: "Leader registered" });
+      const leaderId = memberResult.insertId;
+      const teamName = `${first_name} ${last_name}`;
+
+      const [teamResult] = await pool.query(
+        "INSERT INTO teams (name, event_id, leader_id) VALUES (?, ?, ?)",
+        [teamName, invite.event_id, leaderId]
+      );
+
+      const teamId = teamResult.insertId;
+
+      await pool.query(
+        "UPDATE members SET team_id=? WHERE id=?",
+        [teamId, leaderId]
+      );
+
+      await pool.query(
+        "UPDATE leader_invitations SET used=true WHERE id=?",
+        [invite.id]
+      );
+
+      await pool.query("COMMIT");
+      res.json({ message: "Leader registered and team created" });
+
+    } catch (txErr) {
+      await pool.query("ROLLBACK");
+      throw txErr;
+    }
 
   } catch (err) {
-
     res.status(500).json({ error: err.message });
-
   }
-
 };
 
 
