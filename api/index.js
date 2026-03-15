@@ -7,6 +7,9 @@ const authRoutes = require("../routes/authRoutes");
 const eventRoutes = require("../routes/eventRoutes");
 const teamRoutes = require("../routes/teamRoutes");
 const invitationRoutes = require("../routes/invitationRoutes");
+const workshopRoutes = require("../routes/workshopRoutes");
+const timerRoutes = require("../routes/timerRoutes");
+const adminRoutes = require("../routes/adminRoutes");
 
 const app = express();
 
@@ -17,13 +20,21 @@ app.use(cors({
 
 app.use(express.json());
 
+const MySQLStore = require("express-mysql-session")(session);
+const pool = require("../config/db");
+
+const sessionStore = new MySQLStore({}, pool);
+
 app.use(session({
+  key: 'hackevent_session_cookie',
   secret: process.env.SESSION_SECRET,
+  store: sessionStore,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
-    httpOnly: true
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24 // 1 day
   }
 }));
 
@@ -31,6 +42,9 @@ app.use("/auth", authRoutes);
 app.use("/events", eventRoutes);
 app.use("/teams", teamRoutes);
 app.use("/invites", invitationRoutes);
+app.use("/workshops", workshopRoutes);
+app.use("/timers", timerRoutes);
+app.use("/admin", adminRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "API running" });

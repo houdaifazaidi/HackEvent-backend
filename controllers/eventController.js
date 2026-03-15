@@ -16,6 +16,10 @@ exports.createEvent = async (req, res) => {
 
     const logo = req.file ? req.file.filename : null;
 
+    if (status === 'current') {
+        await pool.query("UPDATE events SET status='finished' WHERE status='current'");
+    }
+
     const query = `
       INSERT INTO events
       (name, logo, event_date, status, max_leaders, max_team_members)
@@ -106,6 +110,10 @@ exports.updateEvent = async (req, res) => {
 
     if (req.file) {
       logo = req.file.filename;
+    }
+    
+    if (status === 'current') {
+        await pool.query("UPDATE events SET status='finished' WHERE status='current' AND id != ?", [id]);
     }
 
     let query;

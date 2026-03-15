@@ -46,6 +46,27 @@ exports.joinAsLeader = async (req, res) => {
 
     const invite = rows[0];
 
+    // Check max_leaders constraint
+    const [eventRows] = await pool.query(
+      "SELECT max_leaders FROM events WHERE id=?",
+      [invite.event_id]
+    );
+
+    if (eventRows.length === 0) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const max_leaders = eventRows[0].max_leaders;
+
+    const [leaderCountRows] = await pool.query(
+        "SELECT COUNT(*) as count FROM members WHERE event_id=? AND role='leader'",
+        [invite.event_id]
+    );
+
+    if (leaderCountRows[0].count >= max_leaders) {
+        return res.status(400).json({ error: "Maximum number of leaders reached for this event" });
+    }
+
     await pool.query(
       `INSERT INTO members
       (first_name,last_name,email,password_hash,role,portfolio,event_id)
@@ -134,6 +155,30 @@ exports.joinTeam = async (req, res) => {
     }
 
     const team = rows[0];
+
+    // Check max_team_members constraint
+    const [eventRows] = await pool.query(
+      "SELECT max_team_members FROM events WHERE id=?",
+      [team.event_id]
+    );
+
+    if (eventRows.length === 0) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const max_team_members = eventRows[0].max_team_members;
+
+    const [memberCountRows] = await pool.query(
+        "SELECT COUNT(*) as count FROM members WHERE team_id=?",
+        [team.id]
+    );
+
+    // Leader is part of the team, so count >= max_team_members logic still applies. 
+    // Example: max 4 members total (1 leader, 3 members).
+    // If the database has 3 inside the team, and limit is 4, they can join.
+    if (memberCountRows[0].count >= max_team_members) {
+        return res.status(400).json({ error: "Maximum number of team members reached for this team" });
+    }
 
     await pool.query(
       `INSERT INTO members
